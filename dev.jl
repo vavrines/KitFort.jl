@@ -3,7 +3,7 @@
 # ------------------------------------------
 using Kinetic, BenchmarkTools
 
-u = collect(-5.0:0.05:5.0)
+u = collect(-5.0:0.1:5.0)
 nu = length(u)
 weights = ones(nu) .* 0.5
 
@@ -35,7 +35,7 @@ prandtl = 1.0
 dt = 1e-4
 
 @btime ccall(
-    (:__kit_MOD_flux_ugks1d, "./fortran/kitmod.so"),
+    (:__kinetic_MOD_flux_ugks_2f1v, "./fortran/kitmod.so"),
     Nothing,
     (Ref{Float64}, Ref{Float64}, Ref{Float64}, 
     Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Float64},
@@ -66,6 +66,13 @@ dt = 1e-4
     prandtl,
     dt,
 )
-println(fw)
+"""
+@101 velocity points 
+~ 11.413 μs (55 allocations: 1.09 KiB) on my NUC
+"""
 
 @btime flux_ugks!(fw, fh, fb, wL, hL, bL, wR, hR, bR, u, weights, inK, γ, muref, omega, prandtl, dt, lenL, lenR, shL, sbL, shR, sbR)
+"""
+@101 velocity points
+~ 13.344 μs (123 allocations: 20.94 KiB) on my NUC
+"""

@@ -2,7 +2,7 @@
 ! Fortran auxiliary module for Kinetic.jl
 !-------------------------------------------------------------------
 
-module KIT
+module Kinetic
 
 implicit none
 
@@ -13,12 +13,15 @@ integer, parameter :: MTUM = 6 !number of tangential moments
 
 contains
 
+include "method_1d.f90"
+include "method_2d.f90"
+
 !-------------------------------------------------------------------
 
-subroutine flux_ugks1d(fluxw, fluxh, fluxb, wL, hL, bL, shL, sbL, lenL, wR, hR, bR, shR, sbR, lenR, &
-                       unum, uspace, weight, ink, gamma, muref, omega, prandtl, dt)
+subroutine flux_ugks_2f1v(fluxw, fluxh, fluxb, wL, hL, bL, shL, sbL, lenL, wR, hR, bR, shR, sbR, lenR, &
+                          unum, uspace, weight, ink, gamma, muref, omega, prandtl, dt)
 
-    integer, intent(in):: unum !// number of velocity grids
+    integer, intent(in) :: unum !// number of velocity grids
     real(kind=8), intent(inout) :: fluxw(3), fluxh(unum), fluxb(unum) !// interface fluxes
     real(kind=8), intent(in) :: wL(3), wR(3) !// conservative variables
     real(kind=8), intent(in) :: hL(unum), bL(unum), shL(unum), sbL(unum) !// distribution functions and their slopes in left cell
@@ -29,9 +32,9 @@ subroutine flux_ugks1d(fluxw, fluxh, fluxb, wL, hL, bL, shL, sbL, lenL, wR, hR, 
     real(kind=8), intent(in) :: muref, omega, prandtl !// reference viscosity, VHS model index, and Prandtl number
     real(kind=8), intent(in) :: dt !// time step
 
-    ! heaviside step function
-    integer, allocatable, dimension(:) :: delta
-
+    !--------------------------------------------------
+    ! initialize
+    !--------------------------------------------------
     ! interface variable
     real(kind=8) :: h(unum), b(unum)
     real(kind=8) :: H0(unum), B0(unum)
@@ -48,10 +51,8 @@ subroutine flux_ugks1d(fluxw, fluxh, fluxb, wL, hL, bL, shL, sbL, lenL, wR, hR, 
     real(kind=8) :: tau
     real(kind=8) :: Mt(5)
 
-    !--------------------------------------------------
-    ! initialize
-    !--------------------------------------------------
-    !Heaviside step function
+    ! heaviside step function
+    real(kind=8) :: delta(unum)
     delta = (sign(1.d0, uspace) + 1.d0) / 2.d0
 
     !--------------------------------------------------
@@ -68,42 +69,42 @@ subroutine flux_ugks1d(fluxw, fluxh, fluxb, wL, hL, bL, shL, sbL, lenL, wR, hR, 
     !--------------------------------------------------
     ! obtain macroscopic variables at interface
     !--------------------------------------------------
-    !conservative variables W_0 
+    ! conservative variables W_0 
     w(1) = sum(weight * h)
     w(2) = sum(weight * uspace * h)
     w(3) = 0.5d0 * (sum(weight * uspace**2 * h) + sum(weight * b))
 
-    !convert to primary variables
-    prim = prim_variable(w, gamma)
+    ! convert to primary variables
+    prim = conserve_prim_1d(w, gamma)
 
-    !heat flux
-    qf = heat_flux(h, b, prim, uspace, weight) 
+    ! heat flux
+    qf = heat_flux_2f1v(h, b, prim, uspace, weight)
 
     !--------------------------------------------------
     ! calculate a^L,a^R
     !--------------------------------------------------
     sw = (w - wL) / (0.5 * lenL)
-    aL = micro_slope(prim, sw, ink)
+    aL = micro_slope_1d(prim, sw, ink)
 
     sw = (wR - w) / (0.5 * lenR)
-    aR = micro_slope(prim, sw, ink)
+    aR = micro_slope_1d(prim, sw, ink)
 
     !--------------------------------------------------
     ! calculate time slope of W and A
     !--------------------------------------------------
-    !<u^n>,<\xi^l>,<u^n>_{>0},<u^n>_{<0}
-    call calc_moment_u(prim, Mu, Mxi, Mu_L, Mu_R, ink) 
+    ! <u^n>,<\xi^l>,<u^n>_{>0},<u^n>_{<0}
+    call calc_moment_1d(prim, Mu, Mxi, Mu_L, Mu_R, ink) 
 
-    Mau_L = moment_au(aL,Mu_L,Mxi,1) !<aL*u*\psi>_{>0}
-    Mau_R = moment_au(aR,Mu_R,Mxi,1) !<aR*u*\psi>_{<0}
+    Mau_L = moment_au_1d(aL,Mu_L,Mxi,1) !<aL*u*\psi>_{>0}
+    Mau_R = moment_au_1d(aR,Mu_R,Mxi,1) !<aR*u*\psi>_{<0}
 
     sw = -prim(1) * (Mau_L + Mau_R) !time slope of W
-    aT = micro_slope(prim, sw, ink) !calculate A
+    aT = micro_slope_1d(prim, sw, ink) !calculate A
 
     !--------------------------------------------------
     ! calculate collision time and some time integration terms
     !--------------------------------------------------
-    tau = collision_time(prim, muref, omega)
+    tau = collision_time_1d(prim, muref, omega)
 
     Mt(4) = tau * (1.d0 - exp(-dt / tau))
     Mt(5) = -tau * dt * exp(-dt / tau) + tau * Mt(4)
@@ -114,23 +115,23 @@ subroutine flux_ugks1d(fluxw, fluxh, fluxb, wL, hL, bL, shL, sbL, lenL, wR, hR, 
     !--------------------------------------------------
     ! calculate the flux of conservative variables related to g0
     !--------------------------------------------------
-    Mau_0 = moment_uv(Mu, Mxi, 1, 0) !<u*\psi>
-    Mau_L = moment_au(aL, Mu_L, Mxi, 2) !<aL*u^2*\psi>_{>0}
-    Mau_R = moment_au(aR, Mu_R, Mxi, 2) !<aR*u^2*\psi>_{<0}
-    Mau_T = moment_au(aT, Mu, Mxi, 1) !<A*u*\psi>
+    Mau_0 = moment_uv_1d(Mu, Mxi, 1, 0) !<u*\psi>
+    Mau_L = moment_au_1d(aL, Mu_L, Mxi, 2) !<aL*u^2*\psi>_{>0}
+    Mau_R = moment_au_1d(aR, Mu_R, Mxi, 2) !<aR*u^2*\psi>_{<0}
+    Mau_T = moment_au_1d(aT, Mu, Mxi, 1) !<A*u*\psi>
 
     fluxw = Mt(1) * prim(1) * Mau_0 + Mt(2) * prim(1) * (Mau_L + Mau_R) + Mt(3) * prim(1) * Mau_T
 
     !--------------------------------------------------
     ! calculate the flux of conservative variables related to g+ and f0
     !--------------------------------------------------
-    !Maxwellian distribution H0 and B0
-    call maxwell(H0, B0, prim, uspace, ink)
+    ! Maxwellian distribution H0 and B0
+    call maxwell_2f1v(H0, B0, prim, uspace, ink)
 
-    !Shakhov part H+ and B+
-    call shakhov(H0, B0, qf, prim, H_plus, B_plus, uspace, ink, prandtl)
+    ! Shakhov part H+ and B+
+    call shakhov_2f1v(H0, B0, qf, prim, H_plus, B_plus, uspace, ink, prandtl)
 
-    !macro flux related to g+ and f0
+    ! macro flux related to g+ and f0
     fluxw(1) = fluxw(1) + Mt(1) * sum(weight * uspace * H_plus) + &
             Mt(4) * sum(weight * uspace * h) - Mt(5) * sum(weight * uspace**2 * sh)
     fluxw(2) = fluxw(2) + Mt(1) * sum(weight * uspace**2 * H_plus) + &
@@ -159,148 +160,254 @@ end
 
 !-------------------------------------------------------------------
 
-subroutine maxwell(H, B, prim, uspace, ink)
+subroutine flux_ugks_2f2v(fluxw, fluxh, fluxb, &
+                          wL, hL, bL, shL, sbL, lenL, &
+                          wR, hR, bR, shR, sbR, lenR, &
+                          unum, vnum, uspace, vspace, weight, &
+                          ink, gamma, muref, omega, prandtl, &
+                          dt, lenFace, cosa, sina)
 
-    real(kind=8), dimension(:), intent(out) :: H, B
-    real(kind=8), intent(in) :: prim(3)
-    real(kind=8), dimension(:), intent(in) :: uspace
-    real(kind=8), intent(in) :: ink
+    integer, intent(in) :: unum, vnum
+    real(kind=8), intent(inout) :: fluxw(4), fluxh(unum, vnum), fluxb(unum, vnum)
+    real(kind=8), intent(in) :: wL(4), wR(4)
+    real(kind=8), intent(in) :: hL(unum, vnum), bL(unum, vnum), shL(unum, vnum), sbL(unum, vnum)
+    real(kind=8), intent(in) :: hR(unum, vnum), bR(unum, vnum), shR(unum, vnum), sbR(unum, vnum)
+    real(kind=8), intent(in) :: lenL, lenR
+    real(kind=8), intent(in) :: uspace(unum, vnum), vspace(unum, vnum), weight(unum, vnum)
+    real(kind=8), intent(in) :: ink, gamma
+    real(kind=8), intent(in) :: muref, omega, prandtl
+    real(kind=8), intent(in) :: dt, lenFace
+    real(kind=8), intent(in) :: cosa, sina
 
-    H = prim(1) * (prim(3) / PI)**(1.d0/2.d0) * exp(-prim(3) * (uspace - prim(2))**2)
-    B = h * ink / (2.d0 * prim(3))
+    !--------------------------------------------------
+    ! initialize
+    !--------------------------------------------------
+    real(kind=8) :: delta(unum, vnum)
+    real(kind=8) :: vn(unum, vnum), vt(unum, vnum)
 
-end subroutine maxwell
+    ! interface variable
+    real(kind=8) :: h(unum, vnum), b(unum, vnum)
+    real(kind=8) :: H0(unum, vnum), B0(unum, vnum)
+    real(kind=8) :: H_plus(unum, vnum), B_plus(unum, vnum)
+    real(kind=8) :: sh(unum, vnum), sb(unum, vnum)
+    real(kind=8) :: w(4), prim(4)
+    real(kind=8) :: qf(2)
+    real(kind=8) :: sw(4)
+    real(kind=8) :: aL(4), aR(4), aT(4)
+
+    ! moments variable
+    real(kind=8) :: Mu(0:MNUM), Mu_L(0:MNUM), Mu_R(0:MNUM), Mv(0:MTUM), Mxi(0:2)
+    real(kind=8) :: Muv(4)
+    real(kind=8) :: Mau_L(4), Mau_R(4)
+    real(kind=8) :: Mau_T(4)
+    real(kind=8) :: tau
+    real(kind=8) :: Mt(5)
+
+    vn = uspace * cosa + vspace * sina
+    vt = vspace * cosa - uspace * sina
+
+    delta = (sign(1.d0, vn) + 1.d0) / 2.d0
+
+    !--------------------------------------------------
+    ! reconstruct initial distribution
+    !--------------------------------------------------
+    h = (hL + 0.5 * lenL * shL) * delta + &
+    (hR - 0.5 * lenR * shR) * (1.d0 - delta)
+    b = (bL + 0.5 * lenL * sbL) * delta + &
+    (bR - 0.5 * lenR * sbR) * (1.d0 - delta)
+
+    sh = shL * delta + shR * (1.d0 - delta)
+    sb = sbL * delta + sbR * (1.d0 - delta)
+
+    !--------------------------------------------------
+    ! obtain macroscopic variables at interface
+    !--------------------------------------------------
+    ! conservative variables W_0 
+    w(1) = sum(weight * h)
+    w(2) = sum(weight * vn * h)
+    w(3) = sum(weight * vt * h)
+    w(4) = 0.5d0 * (sum(weight * (vn**2 + vt**2) * h) + sum(weight * b))
+
+    ! convert to primary variables
+    prim = conserve_prim_2d(w, gamma)
+
+    ! heat flux
+    qf = heat_flux_2f2v(h, b, prim, vn, vt, weight) 
+
+    !--------------------------------------------------
+    ! calculate a^L,a^R
+    !--------------------------------------------------
+    sw = (w - local_frame(wL, cosa, sina)) / (0.5 * lenL)
+    aL = micro_slope_2d(prim, sw, ink)
+
+    sw = (local_frame(wR, cosa, sina) - w) / (0.5 * lenR)
+    aR = micro_slope_2d(prim, sw, ink)
+
+    !--------------------------------------------------
+    ! calculate time slope of W and A
+    !--------------------------------------------------
+    ! <u^n>,<v^m>,<\xi^l>,<u^n>_{>0},<u^n>_{<0}
+    call calc_moment_2d(prim, Mu, Mv, Mxi, Mu_L, Mu_R, ink) 
+
+    Mau_L = moment_au_2d(aL, Mu_L, Mv, Mxi, 1, 0)
+    Mau_R = moment_au_2d(aR, Mu_R, Mv, Mxi, 1, 0)
+
+    sw = -prim(1) * (Mau_L + Mau_R)
+    aT = micro_slope_2d(prim, sw, ink)
+
+    !--------------------------------------------------
+    ! calculate collision time and some time integration terms
+    !--------------------------------------------------
+    tau = collision_time_2d(prim, muref, omega)
+
+    Mt(4) = tau*(1.d0 - exp(-dt / tau))
+    Mt(5) = -tau * dt * exp(-dt / tau) + tau * Mt(4)
+    Mt(1) = dt - Mt(4)
+    Mt(2) = -tau * Mt(1) + Mt(5)
+    Mt(3) = dt**2 / 2.d0 - tau * Mt(1)
+
+    !--------------------------------------------------
+    ! calculate the flux of conservative variables related to g0
+    !--------------------------------------------------
+    Muv = moment_uv_2d(Mu, Mv, Mxi, 1, 0, 0)
+    Mau_L = moment_au_2d(aL, Mu_L, Mv, Mxi, 2, 0)
+    Mau_R = moment_au_2d(aR, Mu_R, Mv, Mxi, 2, 0)
+    Mau_T = moment_au_2d(aT, Mu, Mv, Mxi, 1, 0)
+
+    fluxw = Mt(1) * prim(1) * Muv + Mt(2) * prim(1) * (Mau_L + Mau_R) + Mt(3) * prim(1) * Mau_T
+
+    !--------------------------------------------------
+    ! calculate the flux of conservative variables related to g+ and f0
+    !--------------------------------------------------
+    ! Maxwellian distribution H0 and B0
+    call maxwell_2f2v(H0, B0, prim, vn, vt, ink)
+
+    ! Shakhov part H+ and B+
+    call shakhov_2f2v(H0, B0, qf, prim, H_plus, B_plus, vn, vt, ink, prandtl)
+
+    ! macro flux related to g+ and f0
+    fluxw(1) = fluxw(1) + Mt(1) * sum(weight * vn * H_plus) + &
+               Mt(4) * sum(weight * vn * h) - Mt(5) * sum(weight * vn**2 * sh)
+    fluxw(2) = fluxw(2) + Mt(1) * sum(weight * vn * vn * H_plus) + &
+               Mt(4) * sum(weight * vn * vn * h) - Mt(5) * sum(weight * vn * vn**2 * sh)
+    fluxw(3) = fluxw(3) + Mt(1) * sum(weight * vt * vn * H_plus) + &
+               Mt(4) * sum(weight * vt * vn * h) - Mt(5) * sum(weight * vt * vn**2 * sh)
+    fluxw(4) = fluxw(4) + &
+               Mt(1) * 0.5d0 * (sum(weight * vn *(vn**2 + vt**2) * H_plus) + sum(weight * vn * B_plus)) + &
+               Mt(4) * 0.5d0 * (sum(weight * vn *(vn**2 + vt**2) * h) + sum(weight * vn * b)) - &
+               Mt(5) * 0.5d0 * (sum(weight * vn**2 * (vn**2 + vt**2) * sh) + sum(weight * vn**2 * sb))
+
+    !--------------------------------------------------
+    ! calculate flux of distribution function
+    !--------------------------------------------------
+    fluxh = Mt(1) * vn * (H0 + H_plus) + &
+            Mt(2) * vn**2 * (aL(1) * H0 + aL(2) * vn * H0 + aL(3) * vt * H0 + &
+            0.5d0 * aL(4) * ((vn**2 + vt**2) * H0 + B0)) * delta + & 
+            Mt(2) * vn**2 * (aR(1) * H0 + aR(2) * vn * H0 + aR(3) * vt * H0 + &
+            0.5d0 * aR(4) * ((vn**2 + vt**2) * H0 + B0)) * (1.d0 - delta) + &
+            Mt(3) * vn * (aT(1) * H0 + aT(2) * vn * H0 + aT(3) * vt * H0 + &
+            0.5d0 * aT(4) * ((vn**2 + vt**2) * H0 + B0)) + &
+            Mt(4) * vn * h - Mt(5) * vn**2 * sh
+
+    fluxb = Mt(1) * vn * (B0 + B_plus) + &
+            Mt(2) * vn**2 * (aL(1) * B0 + aL(2) * vn * B0 + aL(3) * vt * B0 + &
+            0.5d0 * aL(4) * ((vn**2 + vt**2) * B0 + Mxi(2) * H0)) * delta + &
+            Mt(2) * vn**2 * (aR(1) * B0 + aR(2) * vn * B0 + aR(3) * vt * B0 + &
+            0.5d0 * aR(4) * ((vn**2 + vt**2) * B0 + Mxi(2) * H0)) * (1.d0 - delta) + &
+            Mt(3) * vn * (aT(1) * B0 + aT(2) * vn * B0 + aT(3) * vt * B0 + &
+            0.5d0 * aT(4) * ((vn**2 + vt**2) * B0 + Mxi(2) * H0)) + &
+            Mt(4) * vn * b - Mt(5) * vn**2 * sb
+
+    !--------------------------------------------------
+    ! final flux
+    !--------------------------------------------------
+    ! convert to global frame
+    fluxw = global_frame(fluxw, cosa, sina)
+
+    ! total flux
+    fluxw = lenFace * fluxw 
+    fluxh = lenFace * fluxh
+    fluxb = lenFace * fluxb
+
+end
 
 !-------------------------------------------------------------------
 
-subroutine shakhov(H, B, qf, prim, H_plus, B_plus, uspace, ink, prandtl)
+subroutine update_2f1v(fwL, fhL, fbL, w, prim, h, b, fwR, fhR, fbR, unum, u, weights, &
+                       inK, gamma, muref, omega, pr, dx, dt, res, avg)
 
-    real(kind=8), dimension(:), intent(in) :: H, B
-    real(kind=8), intent(in) :: qf
-    real(kind=8), intent(in) :: prim(3)
-    real(kind=8), dimension(:), intent(out) :: H_plus, B_plus
-    real(kind=8), dimension(:), intent(in) :: uspace
-    real(kind=8), intent(in) :: ink
-    real(kind=8), intent(in) :: prandtl
-    
-    H_plus = 0.8d0 * (1.d0 - prandtl) * prim(3)**2 / prim(1) * &
-             (uspace - prim(2)) * qf * (2.d0 * prim(3) * (uspace - prim(2))**2 + ink - 5.d0) * H
-    B_plus = 0.8d0 * (1.d0 - prandtl) * prim(3)**2 / prim(1) * &
-             (uspace - prim(2)) * qf * (2.d0 * prim(3) * (uspace - prim(2))**2 + ink - 3.d0) * B
+    integer, intent(in):: unum
+    real(kind=8), intent(in) :: fwL(3), fhL(unum), fbL(unum)
+    real(kind=8), intent(inout) :: w(3), h(unum), b(unum)
+    real(kind=8), intent(in) :: fwR(3), fhR(unum), fbR(unum)
+    real(kind=8), intent(in) :: u(unum), weights(unum)
+    real(kind=8), intent(in) :: inK, gamma
+    real(kind=8), intent(in) :: muref, omega, pr
+    real(kind=8), intent(in) :: dx, dt
+    real(kind=8), intent(inout) :: res(3), avg(3)
 
-end subroutine shakhov
+    ! t=t^n
+    real(kind=8) :: MH_old(unum), MB_old(unum)
+    real(kind=8) :: w_old(3), prim_old(3)
+    real(kind=8) :: tau_old
 
-!-------------------------------------------------------------------
+    ! t=t^n+1
+    real(kind=8) :: MH(unum), MB(unum)
+    real(kind=8) :: MH_plus(unum), MB_plus(unum)
 
-function collision_time(prim, muref, omega)
+    real(kind=8) :: prim(3)
+    real(kind=8) :: qf
+    real(kind=8) :: tau
 
-    real(kind=8), intent(in) :: prim(3), muref, omega
-    real(kind=8) :: collision_time
+    !--------------------------------------------------
+    ! store W^n and calculate H^n,B^n,\tau^n
+    !--------------------------------------------------
+    w_old = w
+    prim_old = conserve_prim_1d(w_old, gamma)
 
-    collision_time = muref * 2.d0 * prim(3)**(1.d0 - omega) / prim(1)
+    call maxwell_2f1v(MH_old, MB_old, prim_old, u, inK)
+    tau_old = collision_time_1d(prim_old, muref, omega)
 
-end function collision_time
+    !--------------------------------------------------
+    ! update W^{n+1} and calculate H^{n+1},B^{n+1},\tau^{n+1}
+    !--------------------------------------------------
+    w = w + (fwL - fwR) / dx
+    prim = conserve_prim_1d(w, gamma)
 
-!-------------------------------------------------------------------
+    call maxwell_2f1v(MH, MB, prim, u, inK)
+    tau = collision_time_1d(prim, muref, omega)
 
-function prim_variable(w, gamma)
+    !--------------------------------------------------
+    ! record residual
+    !--------------------------------------------------
+    res = res + (w_old - w)**2
+    avg = avg + abs(w)
 
-    real(kind=8), intent(in) :: w(3), gamma
-    real(kind=8) :: prim_variable(3)
+    !--------------------------------------------------
+    ! Shakhov part
+    !--------------------------------------------------
+    ! heat flux at t=t^n
+    qf = heat_flux_2f1v(h, b, prim_old, u, weights)
 
-    prim_variable(1) = w(1)
-    prim_variable(2) = w(2) / w(1)
-    prim_variable(3) = 0.5d0 * w(1) / (gamma - 1.d0) / (w(3) - 0.5d0 * w(2)**2 / w(1))
+    ! h^+ = H+H^+ at t=t^n
+    call shakhov_part(MH_old, MB_old, qf, prim_old, MH_plus, MB_plus, u, weights, inK, pr)
+    MH_old = MH_old + MH_plus !h^+
+    MB_old = MB_old + MB_plus !b^+
 
-end function prim_variable
+    ! h^+ = H+H^+ at t=t^{n+1}
+    call shakhov_part(MH, MB, qf, prim, MH_plus, MB_plus, u, weights, inK, pr)
+    MH = MH + MH_plus
+    MB = MB + MB_plus
 
-!-------------------------------------------------------------------
+    !--------------------------------------------------
+    ! update distribution function
+    !--------------------------------------------------
+    h = (h + (fhL - fhR) / dx + &
+        0.5 * dt * (MH / tau + (MH_old - h) / tau_old))/(1.0 + 0.5 * dt / tau)
+    b = (b + (fbL - fbR) / dx + &
+        0.5 * dt * (MB / tau + (MB_old - b) / tau_old))/(1.0 + 0.5 * dt / tau)
 
-function heat_flux(h, b, prim, uspace, weight)
-    
-    real(kind=8), dimension(:), intent(in) :: h, b
-    real(kind=8), intent(in) :: prim(3)
-    real(kind=8), dimension(:), intent(in) :: uspace, weight
-    real(kind=8) :: heat_flux
-
-    heat_flux = 0.5d0 * (sum(weight * (uspace - prim(2)) * (uspace - prim(2))**2 * h) + sum(weight * (uspace - prim(2)) * b))
-
-end function heat_flux
-
-!-------------------------------------------------------------------
-
-function micro_slope(prim, sw, ink)
-
-    real(kind=8), intent(in) :: prim(3), sw(3), ink
-    real(kind=8) :: micro_slope(3)
-
-    micro_slope(3) = 4.d0 * prim(3)**2 / (ink + 1.d0) / prim(1) * &
-                     (2.d0 * sw(3) - 2.d0 * prim(2) * sw(2) + sw(1) * (prim(2)**2 - 0.5d0 * (ink + 1.d0) / prim(3)))
-    micro_slope(2) = 2.d0 * prim(3) / prim(1) * (sw(2) - prim(2) * sw(1)) - prim(2) * micro_slope(3)
-    micro_slope(1) = sw(1) / prim(1) - prim(2) * micro_slope(2) - &
-                     0.5d0 * (prim(2)**2 + 0.5d0 * (ink + 1.d0) / prim(3)) * micro_slope(3)
-
-end function micro_slope
-
-!-------------------------------------------------------------------
-
-subroutine calc_moment_u(prim, Mu, Mxi, Mu_L, Mu_R, inK)
-
-    real(kind=8), intent(in) :: prim(3)
-    real(kind=8), intent(out) :: Mu(0:MNUM), Mu_L(0:MNUM), Mu_R(0:MNUM)
-    real(kind=8), intent(out) :: Mxi(0:2)
-    real(kind=8), intent(in) :: inK
-    integer :: i
-
-    !moments of normal velocity
-    Mu_L(0) = 0.5d0 * erfc(-sqrt(prim(3)) * prim(2))
-    Mu_L(1) = prim(2) * Mu_L(0) + 0.5d0 * exp(-prim(3) * prim(2)**2) / sqrt(PI * prim(3))
-    Mu_R(0) = 0.5d0 * erfc(sqrt(prim(3)) * prim(2))
-    Mu_R(1) = prim(2) * Mu_R(0) - 0.5d0 * exp(-prim(3) * prim(2)**2) / sqrt(PI * prim(3))
-
-    do i=2,MNUM
-        Mu_L(i) = prim(2) * Mu_L(i-1) + 0.5d0 * (i-1) * Mu_L(i-2) / prim(3)
-        Mu_R(i) = prim(2) * Mu_R(i-1) + 0.5d0 * (i-1) * Mu_R(i-2) / prim(3)
-    end do
-
-    Mu = Mu_L+Mu_R
-
-    !moments of \xi
-    Mxi(0) = 1.0 !<\xi^0>
-    Mxi(1) = 0.5 * inK / prim(3) !<\xi^2>
-    Mxi(2) = (inK**2 + 2.d0 * inK) / (4.d0 * prim(3)**2) !<\xi^4>
-
-end subroutine calc_moment_u
-
-!-------------------------------------------------------------------
-
-function moment_uv(Mu, Mxi, alpha, delta)
-
-    real(kind=8), intent(in) :: Mu(0:MNUM), Mxi(0:2)
-    integer, intent(in) :: alpha, delta
-    real(kind=8) :: moment_uv(3)
-
-    moment_uv(1) = Mu(alpha) * Mxi(delta/2)
-    moment_uv(2) = Mu(alpha+1) * Mxi(delta/2)
-    moment_uv(3) = 0.5d0 * (Mu(alpha+2) * Mxi(delta/2) + Mu(alpha) * Mxi((delta+2)/2))
-
-end function moment_uv
-
-!-------------------------------------------------------------------
-
-function moment_au(a, Mu, Mxi, alpha)
-
-    real(kind=8), intent(in) :: a(3)
-    real(kind=8), intent(in) :: Mu(0:MNUM), Mxi(0:2)
-    integer, intent(in) :: alpha
-    real(kind=8) :: moment_au(3)
-
-    moment_au = a(1) * moment_uv(Mu,Mxi,alpha+0,0) + &
-                a(2) * moment_uv(Mu,Mxi,alpha+1,0) + &
-                0.5d0 * a(3) * moment_uv(Mu,Mxi,alpha+2,0) + &
-                0.5d0 * a(3) * moment_uv(Mu,Mxi,alpha+0,2)
-
-end function moment_au
+end
 
 !-------------------------------------------------------------------
 
