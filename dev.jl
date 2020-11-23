@@ -3,7 +3,7 @@
 # ------------------------------------------
 using Kinetic, BenchmarkTools
 
-u = collect(-5.0:0.5:5.0)
+u = collect(-5.0:0.05:5.0)
 nu = length(u)
 weights = ones(nu) .* 0.5
 
