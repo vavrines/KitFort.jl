@@ -1,7 +1,7 @@
 # ------------------------------------------
 # Adjoint julia script
 # ------------------------------------------
-using Kinetic
+using Kinetic, BenchmarkTools
 
 u = collect(-5.0:0.5:5.0)
 nu = length(u)
@@ -34,7 +34,7 @@ omega = 0.72
 prandtl = 1.0
 dt = 1e-4
 
-ccall(
+@btime ccall(
     (:__kit_MOD_flux_ugks1d, "./fortran/kitmod.so"),
     Nothing,
     (Ref{Float64}, Ref{Float64}, Ref{Float64}, 
@@ -67,3 +67,5 @@ ccall(
     dt,
 )
 println(fw)
+
+@btime flux_ugks!(fw, fh, fb, wL, hL, bL, wR, hR, bR, u, weights, inK, γ, muref, omega, prandtl, dt, lenL, lenR, shL, sbL, shR, sbR)
