@@ -15,6 +15,18 @@ end
 
 !-------------------------------------------------------------------
 
+subroutine maxwell_1f1v(H, prim, uspace)
+
+    real(kind=8), dimension(:), intent(out) :: H
+    real(kind=8), intent(in) :: prim(3)
+    real(kind=8), dimension(:), intent(in) :: uspace
+
+    H = prim(1) * (prim(3) / PI)**(1.d0/2.d0) * exp(-prim(3) * (uspace - prim(2))**2)
+
+end
+
+!-------------------------------------------------------------------
+
 subroutine maxwell_2f1v(H, B, prim, uspace, ink)
 
     real(kind=8), dimension(:), intent(out) :: H, B
@@ -24,6 +36,23 @@ subroutine maxwell_2f1v(H, B, prim, uspace, ink)
 
     H = prim(1) * (prim(3) / PI)**(1.d0/2.d0) * exp(-prim(3) * (uspace - prim(2))**2)
     B = h * ink / (2.d0 * prim(3))
+
+end
+
+!-------------------------------------------------------------------
+
+subroutine shakhov_1f1v(H, qf, prim, H_plus, uspace, ink, prandtl)
+
+    real(kind=8), dimension(:), intent(in) :: H
+    real(kind=8), intent(in) :: qf
+    real(kind=8), intent(in) :: prim(3)
+    real(kind=8), dimension(:), intent(out) :: H_plus
+    real(kind=8), dimension(:), intent(in) :: uspace
+    real(kind=8), intent(in) :: ink
+    real(kind=8), intent(in) :: prandtl
+    
+    H_plus = 0.8d0 * (1.d0 - prandtl) * prim(3)**2 / prim(1) * &
+             (uspace - prim(2)) * qf * (2.d0 * prim(3) * (uspace - prim(2))**2 + ink - 5.d0) * H
 
 end
 
@@ -54,6 +83,19 @@ function collision_time_1d(prim, muref, omega)
     real(kind=8) :: collision_time_1d
 
     collision_time_1d = muref * 2.d0 * prim(3)**(1.d0 - omega) / prim(1)
+
+end
+
+!-------------------------------------------------------------------
+
+function heat_flux_1f1v(h, prim, uspace, weight)
+    
+    real(kind=8), dimension(:), intent(in) :: h
+    real(kind=8), intent(in) :: prim(3)
+    real(kind=8), dimension(:), intent(in) :: uspace, weight
+    real(kind=8) :: heat_flux_1f1v
+
+    heat_flux_1f1v = 0.5d0 * sum(weight * (uspace - prim(2)) * (uspace - prim(2))**2 * h)
 
 end
 
