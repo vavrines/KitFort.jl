@@ -16,6 +16,7 @@ function flux_kfvs!(
     Z<:AbstractArray{<:AbstractFloat,1},
     A<:AbstractArray{<:AbstractFloat,1},
 }
+    println(readdir())
     ccall(
         (:__kinetic_MOD_flux_kfvs_1f1v, "kitmod.so"),
         Nothing,
