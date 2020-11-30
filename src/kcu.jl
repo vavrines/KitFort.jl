@@ -22,7 +22,7 @@ function flux_kcu!(
     B<:AbstractArray{<:AbstractFloat,1},
 }
     ccall(
-        (:__kinetic_MOD_flux_kcu_1f1v, "fortran/kitmod.so"),
+        (:__kinetic_MOD_flux_kcu_1f1v, "kitmod.so"),
         Nothing,
         (Ref{Float64}, Ref{Float64},
         Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Float64},

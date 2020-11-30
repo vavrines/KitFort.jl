@@ -1,4 +1,4 @@
-# Kifort
+# KitFort.jl
 
 ![CI](https://github.com/vavrines/KitFort.jl/workflows/CI/badge.svg)
 

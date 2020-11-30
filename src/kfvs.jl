@@ -17,7 +17,7 @@ function flux_kfvs!(
     A<:AbstractArray{<:AbstractFloat,1},
 }
     ccall(
-        (:__kinetic_MOD_flux_kfvs_1f1v, "fortran/kitmod.so"),
+        (:__kinetic_MOD_flux_kfvs_1f1v, "kitmod.so"),
         Nothing,
         (Ref{Float64}, Ref{Float64},
         Ref{Float64}, Ref{Float64},
@@ -60,7 +60,7 @@ function flux_kfvs!(
     A<:AbstractArray{<:AbstractFloat,1},
 }
     ccall(
-        (:__kinetic_MOD_flux_kfvs_2f1v, "fortran/kitmod.so"),
+        (:__kinetic_MOD_flux_kfvs_2f1v, "kitmod.so"),
         Nothing,
         (Ref{Float64}, Ref{Float64}, Ref{Float64}, 
         Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Float64},

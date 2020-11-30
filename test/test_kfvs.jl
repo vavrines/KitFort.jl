@@ -39,7 +39,7 @@ begin
     prandtl = 1.0
     dt = 1e-4
 end
-using KitFort
+
 flux_kfvs!(
     fw,
     fh,
