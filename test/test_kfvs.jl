@@ -40,7 +40,7 @@ begin
     dt = 1e-4
 end
 
-flux_kfvs!(
+KitFort.flux_kfvs!(
     fw,
     fh,
     hL,
@@ -53,7 +53,7 @@ flux_kfvs!(
     shR,
 )
 
-flux_kfvs!(
+KitFort.flux_kfvs!(
     fw,
     fh,
     fb,
