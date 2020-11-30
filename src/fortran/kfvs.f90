@@ -2,14 +2,12 @@
 ! Kinetic Flux Vector Splitting Method
 !-------------------------------------------------------------------
 
-subroutine flux_kfvs_1f1v(fluxw, fluxh, hL, shL, lenL, hR, shR, lenR, &
-                          unum, uspace, weight, dt)
+subroutine flux_kfvs_1f1v(fluxw, fluxh, hL, hR, uspace, weight, unum, dt, shL, shR)
 
     integer, intent(in) :: unum !// number of velocity grids
     real(kind=8), intent(inout) :: fluxw(3), fluxh(unum) !// interface fluxes
     real(kind=8), intent(in) :: hL(unum), shL(unum) !// distribution functions and their slopes in left cell
     real(kind=8), intent(in) :: hR(unum), shR(unum) !// distribution functions and their slopes in right cell
-    real(kind=8), intent(in) :: lenL, lenR !// cell lengths
     real(kind=8), intent(in) :: uspace(unum), weight(unum) !// velocity quadrature points and weights
     real(kind=8), intent(in) :: dt !// time step
 
@@ -30,8 +28,7 @@ subroutine flux_kfvs_1f1v(fluxw, fluxh, hL, shL, lenL, hR, shR, lenR, &
     !--------------------------------------------------
     ! upwind reconstruction
     !--------------------------------------------------
-    h = (hL + 0.5 * lenL * shL) * delta + &
-        (hR - 0.5 * lenR * shR) * (1.d0 - delta)
+    h = hL * delta + hR * (1.d0 - delta)
     sh = shL * delta + shR * (1.d0 - delta)
 
     Mt(1) = dt
@@ -53,14 +50,13 @@ end
 
 !-------------------------------------------------------------------
 
-subroutine flux_kfvs_2f1v(fluxw, fluxh, fluxb, hL, bL, shL, sbL, lenL, hR, bR, shR, sbR, lenR, &
-                          unum, uspace, weight, dt)
+subroutine flux_kfvs_2f1v(fluxw, fluxh, fluxb, hL, bL, hR, bR, &
+                          unum, uspace, weight, dt, shL, sbL, shR, sbR)
 
     integer, intent(in) :: unum !// number of velocity grids
     real(kind=8), intent(inout) :: fluxw(3), fluxh(unum), fluxb(unum) !// interface fluxes
     real(kind=8), intent(in) :: hL(unum), bL(unum), shL(unum), sbL(unum) !// distribution functions and their slopes in left cell
     real(kind=8), intent(in) :: hR(unum), bR(unum), shR(unum), sbR(unum) !// distribution functions and their slopes in right cell
-    real(kind=8), intent(in) :: lenL, lenR !// cell lengths
     real(kind=8), intent(in) :: uspace(unum), weight(unum) !// velocity quadrature points and weights
     real(kind=8), intent(in) :: dt !// time step
 
@@ -83,10 +79,9 @@ subroutine flux_kfvs_2f1v(fluxw, fluxh, fluxb, hL, bL, shL, sbL, lenL, hR, bR, s
     !--------------------------------------------------
     ! upwind reconstruction
     !--------------------------------------------------
-    h = (hL + 0.5 * lenL * shL) * delta + &
-        (hR - 0.5 * lenR * shR) * (1.d0 - delta)
-    b = (bL + 0.5 * lenL * sbL) * delta + &
-        (bR - 0.5 * lenR * sbR) * (1.d0 - delta)
+    h = hL * delta + hR * (1.d0 - delta)
+    b = bL * delta + bR * (1.d0 - delta)
+
     sh = shL * delta + shR * (1.d0 - delta)
     sb = sbL * delta + sbR * (1.d0 - delta)
 

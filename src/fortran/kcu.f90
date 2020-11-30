@@ -1,15 +1,14 @@
 !-------------------------------------------------------------------
-! Unified Gas Kinetic Scheme
+! Central-Upwind Scheme
 !-------------------------------------------------------------------
 
-subroutine flux_kcu_1f1v(fluxw, fluxh, hL, shL, lenL, hR, shR, lenR, &
-                         unum, uspace, weight, ink, gamma, muref, omega, prandtl, dt)
+subroutine flux_kcu_1f1v(fluxw, fluxh, hL, hR, uspace, weight, unum, &
+                         ink, gamma, muref, omega, prandtl, dt, shL, shR)
 
     integer, intent(in) :: unum !// number of velocity grids
     real(kind=8), intent(inout) :: fluxw(3), fluxh(unum) !// interface fluxes
     real(kind=8), intent(in) :: hL(unum), shL(unum) !// distribution functions and their slopes in left cell
     real(kind=8), intent(in) :: hR(unum), shR(unum) !// distribution functions and their slopes in right cell
-    real(kind=8), intent(in) :: lenL, lenR !// cell lengths
     real(kind=8), intent(in) :: uspace(unum), weight(unum) !// velocity quadrature points and weights
     real(kind=8), intent(in) :: ink, gamma !// internal degrees of freedom of gas and Poisson ratio
     real(kind=8), intent(in) :: muref, omega, prandtl !// reference viscosity, VHS model index, and Prandtl number
@@ -39,8 +38,7 @@ subroutine flux_kcu_1f1v(fluxw, fluxh, hL, shL, lenL, hR, shR, lenR, &
     !--------------------------------------------------
     ! upwind reconstruction
     !--------------------------------------------------
-    h = (hL + 0.5 * lenL * shL) * delta + &
-        (hR - 0.5 * lenR * shR) * (1.d0 - delta)
+    h = hL * delta + hR * (1.d0 - delta)
     sh = shL * delta + shR * (1.d0 - delta)
 
     !--------------------------------------------------
@@ -104,14 +102,13 @@ end
 
 !-------------------------------------------------------------------
 
-subroutine flux_kcu_2f1v(fluxw, fluxh, fluxb, hL, bL, shL, sbL, lenL, hR, bR, shR, sbR, lenR, &
-                         unum, uspace, weight, ink, gamma, muref, omega, prandtl, dt)
+subroutine flux_kcu_2f1v(fluxw, fluxh, fluxb, hL, bL, hR, bR, unum, uspace, weight, &
+                         ink, gamma, muref, omega, prandtl, dt, shL, sbL, shR, sbR)
 
     integer, intent(in) :: unum !// number of velocity grids
     real(kind=8), intent(inout) :: fluxw(3), fluxh(unum), fluxb(unum) !// interface fluxes
     real(kind=8), intent(in) :: hL(unum), bL(unum), shL(unum), sbL(unum) !// distribution functions and their slopes in left cell
     real(kind=8), intent(in) :: hR(unum), bR(unum), shR(unum), sbR(unum) !// distribution functions and their slopes in right cell
-    real(kind=8), intent(in) :: lenL, lenR !// cell lengths
     real(kind=8), intent(in) :: uspace(unum), weight(unum) !// velocity quadrature points and weights
     real(kind=8), intent(in) :: ink, gamma !// internal degrees of freedom of gas and Poisson ratio
     real(kind=8), intent(in) :: muref, omega, prandtl !// reference viscosity, VHS model index, and Prandtl number
@@ -141,10 +138,8 @@ subroutine flux_kcu_2f1v(fluxw, fluxh, fluxb, hL, bL, shL, sbL, lenL, hR, bR, sh
     !--------------------------------------------------
     ! upwind reconstruction
     !--------------------------------------------------
-    h = (hL + 0.5 * lenL * shL) * delta + &
-        (hR - 0.5 * lenR * shR) * (1.d0 - delta)
-    b = (bL + 0.5 * lenL * sbL) * delta + &
-        (bR - 0.5 * lenR * sbR) * (1.d0 - delta)
+    h = hL * delta + hR * (1.d0 - delta)
+    b = bL * delta + bR * (1.d0 - delta)
 
     sh = shL * delta + shR * (1.d0 - delta)
     sb = sbL * delta + sbR * (1.d0 - delta)
@@ -212,29 +207,24 @@ end
 
 !-------------------------------------------------------------------
 
-subroutine flux_kcu_2f2v(fluxw, fluxh, fluxb, &
-                         hL, bL, shL, sbL, lenL, &
-                         hR, bR, shR, sbR, lenR, &
-                         unum, vnum, uspace, vspace, weight, &
+subroutine flux_kcu_2f2v(fluxw, fluxh, fluxb, hL, bL, hR, bR, &
+                         unum, vnum, vn, vt, weight, &
                          ink, gamma, muref, omega, prandtl, &
-                         dt, lenFace, cosa, sina)
+                         dt, lenFace, shL, sbL, shR, sbR)
 
     integer, intent(in) :: unum, vnum
     real(kind=8), intent(inout) :: fluxw(4), fluxh(unum, vnum), fluxb(unum, vnum)
     real(kind=8), intent(in) :: hL(unum, vnum), bL(unum, vnum), shL(unum, vnum), sbL(unum, vnum)
     real(kind=8), intent(in) :: hR(unum, vnum), bR(unum, vnum), shR(unum, vnum), sbR(unum, vnum)
-    real(kind=8), intent(in) :: lenL, lenR
-    real(kind=8), intent(in) :: uspace(unum, vnum), vspace(unum, vnum), weight(unum, vnum)
+    real(kind=8), intent(in) :: vn(unum, vnum), vt(unum, vnum), weight(unum, vnum)
     real(kind=8), intent(in) :: ink, gamma
     real(kind=8), intent(in) :: muref, omega, prandtl
     real(kind=8), intent(in) :: dt, lenFace
-    real(kind=8), intent(in) :: cosa, sina
 
     !--------------------------------------------------
     ! initialize
     !--------------------------------------------------
     real(kind=8) :: delta(unum, vnum)
-    real(kind=8) :: vn(unum, vnum), vt(unum, vnum)
 
     ! interface variable
     real(kind=8) :: h(unum, vnum), b(unum, vnum)
@@ -250,18 +240,13 @@ subroutine flux_kcu_2f2v(fluxw, fluxh, fluxb, &
     real(kind=8) :: tau
     real(kind=8) :: Mt(3)
 
-    vn = uspace * cosa + vspace * sina
-    vt = vspace * cosa - uspace * sina
-
     delta = (sign(1.d0, vn) + 1.d0) / 2.d0
 
     !--------------------------------------------------
     ! reconstruct initial distribution
     !--------------------------------------------------
-    h = (hL + 0.5 * lenL * shL) * delta + &
-        (hR - 0.5 * lenR * shR) * (1.d0 - delta)
-    b = (bL + 0.5 * lenL * sbL) * delta + &
-        (bR - 0.5 * lenR * sbR) * (1.d0 - delta)
+    h = hL * delta + hR * (1.d0 - delta)
+    b = bL * delta + bR * (1.d0 - delta)
 
     sh = shL * delta + shR * (1.d0 - delta)
     sb = sbL * delta + sbR * (1.d0 - delta)
@@ -332,10 +317,6 @@ subroutine flux_kcu_2f2v(fluxw, fluxh, fluxb, &
     !--------------------------------------------------
     ! final flux
     !--------------------------------------------------
-    ! convert to global frame
-    fluxw = global_frame(fluxw, cosa, sina)
-
-    ! total flux
     fluxw = lenFace * fluxw 
     fluxh = lenFace * fluxh
     fluxb = lenFace * fluxb
