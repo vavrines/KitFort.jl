@@ -1,4 +1,4 @@
 using Test
 import KitFort
 
-include("test_kfvs.jl")
+include("test_flux_1d.jl")

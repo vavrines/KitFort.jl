@@ -2,8 +2,8 @@
 ! Unified Gas Kinetic Scheme
 !-------------------------------------------------------------------
 
-subroutine flux_ugks_1f1v(fluxw, fluxh, wL, hL, shL, lenL, wR, hR, shR, lenR, &
-                          unum, uspace, weight, ink, gamma, muref, omega, prandtl, dt)
+subroutine flux_ugks_1f1v(fluxw, fluxh, wL, hL, wR, hR, unum, uspace, weight, &
+                          ink, gamma, muref, omega, prandtl, dt, lenL, lenR, shL, shR)
 
     integer, intent(in) :: unum !// number of velocity grids
     real(kind=8), intent(inout) :: fluxw(3), fluxh(unum) !// interface fluxes
@@ -135,8 +135,8 @@ end
 
 !-------------------------------------------------------------------
 
-subroutine flux_ugks_2f1v(fluxw, fluxh, fluxb, wL, hL, bL, shL, sbL, lenL, wR, hR, bR, shR, sbR, lenR, &
-                          unum, uspace, weight, ink, gamma, muref, omega, prandtl, dt)
+subroutine flux_ugks_2f1v(fluxw, fluxh, fluxb, wL, hL, bL, wR, hR, bR, unum, uspace, weight, &
+                          ink, gamma, muref, omega, prandtl, dt, lenL, lenR, shL, sbL, shR, sbR)
 
     integer, intent(in) :: unum !// number of velocity grids
     real(kind=8), intent(inout) :: fluxw(3), fluxh(unum), fluxb(unum) !// interface fluxes
@@ -175,10 +175,8 @@ subroutine flux_ugks_2f1v(fluxw, fluxh, fluxb, wL, hL, bL, shL, sbL, lenL, wR, h
     !--------------------------------------------------
     ! upwind reconstruction
     !--------------------------------------------------
-    h = (hL + 0.5 * lenL * shL) * delta + &
-        (hR - 0.5 * lenR * shR) * (1.d0 - delta)
-    b = (bL + 0.5 * lenL * sbL) * delta + &
-        (bR - 0.5 * lenR * sbR) * (1.d0 - delta)
+    h = hL * delta + hR * (1.d0 - delta)
+    b = bL * delta + bR * (1.d0 - delta)
 
     sh = shL * delta + shR * (1.d0 - delta)
     sb = sbL * delta + sbR * (1.d0 - delta)
@@ -278,11 +276,11 @@ end
 !-------------------------------------------------------------------
 
 subroutine flux_ugks_2f2v(fluxw, fluxh, fluxb, &
-                          wL, hL, bL, shL, sbL, lenL, &
-                          wR, hR, bR, shR, sbR, lenR, &
-                          unum, vnum, uspace, vspace, weight, &
+                          wL, hL, bL, &
+                          wR, hR, bR, &
+                          unum, vnum, vn, vt, weight, &
                           ink, gamma, muref, omega, prandtl, &
-                          dt, lenFace, cosa, sina)
+                          dt, lenL, lenR, lenFace, shL, sbL, shR, sbR)
 
     integer, intent(in) :: unum, vnum
     real(kind=8), intent(inout) :: fluxw(4), fluxh(unum, vnum), fluxb(unum, vnum)
@@ -290,17 +288,15 @@ subroutine flux_ugks_2f2v(fluxw, fluxh, fluxb, &
     real(kind=8), intent(in) :: hL(unum, vnum), bL(unum, vnum), shL(unum, vnum), sbL(unum, vnum)
     real(kind=8), intent(in) :: hR(unum, vnum), bR(unum, vnum), shR(unum, vnum), sbR(unum, vnum)
     real(kind=8), intent(in) :: lenL, lenR
-    real(kind=8), intent(in) :: uspace(unum, vnum), vspace(unum, vnum), weight(unum, vnum)
+    real(kind=8), intent(in) :: vn(unum, vnum), vt(unum, vnum), weight(unum, vnum)
     real(kind=8), intent(in) :: ink, gamma
     real(kind=8), intent(in) :: muref, omega, prandtl
     real(kind=8), intent(in) :: dt, lenFace
-    real(kind=8), intent(in) :: cosa, sina
 
     !--------------------------------------------------
     ! initialize
     !--------------------------------------------------
     real(kind=8) :: delta(unum, vnum)
-    real(kind=8) :: vn(unum, vnum), vt(unum, vnum)
 
     ! interface variable
     real(kind=8) :: h(unum, vnum), b(unum, vnum)
@@ -320,18 +316,13 @@ subroutine flux_ugks_2f2v(fluxw, fluxh, fluxb, &
     real(kind=8) :: tau
     real(kind=8) :: Mt(5)
 
-    vn = uspace * cosa + vspace * sina
-    vt = vspace * cosa - uspace * sina
-
     delta = (sign(1.d0, vn) + 1.d0) / 2.d0
 
     !--------------------------------------------------
     ! reconstruct initial distribution
     !--------------------------------------------------
-    h = (hL + 0.5 * lenL * shL) * delta + &
-        (hR - 0.5 * lenR * shR) * (1.d0 - delta)
-    b = (bL + 0.5 * lenL * sbL) * delta + &
-        (bR - 0.5 * lenR * sbR) * (1.d0 - delta)
+    h = hL * delta + hR * (1.d0 - delta)
+    b = bL * delta + bR * (1.d0 - delta)
 
     sh = shL * delta + shR * (1.d0 - delta)
     sb = sbL * delta + sbR * (1.d0 - delta)
@@ -354,10 +345,10 @@ subroutine flux_ugks_2f2v(fluxw, fluxh, fluxb, &
     !--------------------------------------------------
     ! calculate a^L,a^R
     !--------------------------------------------------
-    sw = (w - local_frame(wL, cosa, sina)) / (0.5 * lenL)
+    sw = (w - wL) / (0.5 * lenL)
     aL = micro_slope_2d(prim, sw, ink)
 
-    sw = (local_frame(wR, cosa, sina) - w) / (0.5 * lenR)
+    sw = (wR - w) / (0.5 * lenR)
     aR = micro_slope_2d(prim, sw, ink)
 
     !--------------------------------------------------
@@ -438,15 +429,8 @@ subroutine flux_ugks_2f2v(fluxw, fluxh, fluxb, &
     !--------------------------------------------------
     ! final flux
     !--------------------------------------------------
-    ! convert to global frame
-    fluxw = global_frame(fluxw, cosa, sina)
-
-    ! total flux
     fluxw = lenFace * fluxw 
     fluxh = lenFace * fluxh
     fluxb = lenFace * fluxb
 
 end
-
-!-------------------------------------------------------------------
-
