@@ -2,6 +2,7 @@
 
 ![CI](https://github.com/vavrines/KitFort.jl/workflows/CI/badge.svg)
 
-The lightweight prototype with Fortran implementation of Kinetic.jl. It can be applied to cases with extreme pursuit of efficiency.
+This package serves as a lightweight module of Fortran methods in [Kinetic.jl](https://github.com/vavrines/Kinetic.jl) ecosystem. It can be applied to the cases with extreme pursuit of efficiency.
 
-Compilation of dynamic Fortran library: `gfortran kitmod.f90 -o kitmod.so -shared -fPIC -O3 `
+## Compilation of dynamic library
+Execute `gfortran kitmod.f90 -o kitmod.so -shared -fPIC -O3 `
