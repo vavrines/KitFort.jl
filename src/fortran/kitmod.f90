@@ -17,5 +17,6 @@ module Kinetic
     include "kfvs.f90"
     include "ugks.f90"
     include "kcu.f90"
+    !include "fsm.f90"
 
 end
