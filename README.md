@@ -17,4 +17,8 @@ To generate the dynamic library file to be called from Julia, make sure the GNU 
 gfortran kitmod.f90 -o kitmod.so -shared -fPIC -O3
 ```
 Alternatively, the Intel Fortran compiler `ifort` can be employed with the same command above.
+Note that GNU and Intel compilers present slightly different behaviors on the function call.
+For example, the low-level KFVS flux function takes:
+- `:__kinetic_MOD_flux_kfvs_1f1v` for GNU
+- `:kinetic_mp_flux_kfvs_1f1v_` for Intel
 Please don't do the recompilation unless you're sure what's exactly going on.
