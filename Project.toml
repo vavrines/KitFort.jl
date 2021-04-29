@@ -3,8 +3,6 @@ uuid = "c7785b10-740d-4428-9d22-c85dcf833c60"
 authors = ["Tianbai Xiao <tianbaixiao@gmail.com>"]
 version = "0.1.0"
 
-[deps]
-
 [compat]
 julia = "^1"
 
