@@ -2,7 +2,9 @@ module KitFort
 
 export flux_kfvs!,
        flux_kcu!,
-       flux_ugks!
+       flux_ugks!,
+       gfortran,
+       ifort
 
 include("kfvs.jl")
 include("kcu.jl")
