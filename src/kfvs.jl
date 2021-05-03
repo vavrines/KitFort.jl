@@ -10,6 +10,7 @@ function flux_kfvs!(
     dt,
     shL = zeros(eltype(hL), axes(hL))::Z,
     shR = zeros(eltype(hR), axes(hR))::Z,
+    compiler = COMPILER,
 ) where {
     X<:AbstractArray{<:AbstractFloat,1},
     Y<:AbstractArray{<:AbstractFloat,1},
@@ -17,32 +18,59 @@ function flux_kfvs!(
     A<:AbstractArray{<:AbstractFloat,1},
 }
     cd(@__DIR__)
-    ccall(
-        (:__kinetic_MOD_flux_kfvs_1f1v, "fortran/kitmod.so"),
-        Nothing,
-        (
-            Ref{Float64},
-            Ref{Float64},
-            Ref{Float64},
-            Ref{Float64},
-            Ref{Float64},
-            Ref{Float64},
-            Ref{Int},
-            Ref{Float64},
-            Ref{Float64},
-            Ref{Float64},
-        ),
-        fw,
-        fh,
-        hL,
-        hR,
-        u,
-        ω,
-        nu,
-        dt,
-        shL,
-        shR,
-    )
+    compiler == :gfortran ?
+        ccall(
+            (:__kinetic_MOD_flux_kfvs_1f1v, "fortran/kitmod.so"),
+            Nothing,
+            (
+                Ref{Float64},
+                Ref{Float64},
+                Ref{Float64},
+                Ref{Float64},
+                Ref{Float64},
+                Ref{Float64},
+                Ref{Int},
+                Ref{Float64},
+                Ref{Float64},
+                Ref{Float64},
+            ),
+            fw,
+            fh,
+            hL,
+            hR,
+            u,
+            ω,
+            nu,
+            dt,
+            shL,
+            shR,
+        ) :
+        ccall(
+            (:kinetic_mp_flux_kfvs_1f1v_, "fortran/kitmod.so"),
+            Nothing,
+            (
+                Ref{Float64},
+                Ref{Float64},
+                Ref{Float64},
+                Ref{Float64},
+                Ref{Float64},
+                Ref{Float64},
+                Ref{Int},
+                Ref{Float64},
+                Ref{Float64},
+                Ref{Float64},
+            ),
+            fw,
+            fh,
+            hL,
+            hR,
+            u,
+            ω,
+            nu,
+            dt,
+            shL,
+            shR,
+        )
 end
 
 #--- 1d2f1v ---#
