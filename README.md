@@ -1,10 +1,14 @@
 # KitFort.jl
 
-![CI](https://github.com/vavrines/KitFort.jl/workflows/CI/badge.svg)
-[![codecov](https://codecov.io/gh/vavrines/KitFort.jl/branch/main/graph/badge.svg?token=67tfVc3AtW)](https://codecov.io/gh/vavrines/KitFort.jl)
+[![version](https://juliahub.com/docs/KitFort/version.svg)](https://juliahub.com/ui/Packages/KitFort/2mlJf)
+![CI](https://img.shields.io/github/actions/workflow/status/vavrines/KitFort.jl/main.yml?branch=main)
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://xiaotianbai.com/Kinetic.jl/stable/)
+[![codecov](https://img.shields.io/codecov/c/github/vavrines/KitFort.jl)](https://codecov.io/gh/vavrines/KitFort.jl)
+[![deps](https://juliahub.com/docs/KitBase/deps.svg)](https://juliahub.com/ui/Packages/KitBase/YOFTS?t=2)
 
-This package serves as a lightweight module of Fortran methods in [Kinetic.jl](https://github.com/vavrines/Kinetic.jl) ecosystem. 
-It's not included in the main module by default, and can be manually imported in the cases with extreme pursuit of efficiency.
+This lightweight module provides the Fortran backends in [Kinetic.jl](https://github.com/vavrines/Kinetic.jl) ecosystem.
+It's not included in the main module by default, and can be manually imported in the extreme pursuit of efficiency.
+[Check the documentation](https://xiaotianbai.com/Kinetic.jl/dev/) for information on the implementation and use of the package.
 
 ## Dynamic library
 
